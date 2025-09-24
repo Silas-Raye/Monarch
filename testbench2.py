@@ -1,6 +1,7 @@
 import pygame
 import sys
 import math
+import random
 
 def iso_project(x, y, z=0):
 	"""Project 3D (x,y,z) coordinates to 2D isometric screen coordinates.
@@ -176,7 +177,7 @@ def draw_cube(x, y, h, side_path, top_path):
     pygame.draw.polygon(screen, edge_color, top_pts, 1)
 
 pygame.init()
-screen_width = 960
+screen_width = 992
 screen_height = 640
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Isometric Cubes - Testbench")
@@ -185,7 +186,7 @@ clock = pygame.time.Clock()
 running = True
 
 # Grid parameters
-grid_size = 17 # gets subtracted by one later
+grid_size = 45 # gets subtracted by one later
 cell_pixels = 30
 
 # Compute offset to center the whole grid on screen
@@ -196,7 +197,119 @@ ys = [c[1] for c in corners]
 grid_width = max(xs) - min(xs)
 grid_height = max(ys) - min(ys)
 center = (screen_width // 2, screen_height // 2 - 30)
-offset = (center[0] - grid_width // 2 - min(xs), center[1] - grid_height // 2 - min(ys))
+# Vertical offset (pixels) to shift the entire background grid and drawn cubes
+# downward. Change this number to move the scene up/down without touching
+# individual drawing code.
+vert_offset = 80
+
+# Offset to add to projected coordinates when drawing (includes vert_offset)
+offset = (center[0] - grid_width // 2 - min(xs), center[1] - grid_height // 2 - min(ys) + vert_offset)
+
+# Ground textures (use these for the full-grid demo)
+ground_side_texture = "test-assets/dirt.png"
+ground_top_texture = "test-assets/dirt_path_top.png"
+
+# Seed RNG and pre-generate a height for every grid cell so heights remain
+# stable across frames. Change rng_seed to get a different but repeatable
+# layout.
+rng_seed = 17
+random.seed(rng_seed)
+heights = [[random.uniform(0.1, 0.4) for x in range(grid_size)] for y in range(grid_size)]
+
+# --- Sweet berry bush animated sprite setup ---------------------------------
+# Load frames sweet_berry_bush_stage0.png .. sweet_berry_bush_stage4.png
+def load_image_safe(path, fallback_size=(32, 48)):
+    try:
+        return pygame.image.load(path).convert_alpha()
+    except Exception:
+        surf = pygame.Surface(fallback_size, pygame.SRCALPHA)
+        surf.fill((0, 0, 0, 0))
+        pygame.draw.rect(surf, (180, 60, 60), surf.get_rect(), border_radius=6)
+        return surf
+
+bush_frames = []
+for i in range(4):
+    p = f"test-assets/sweet_berry_bush_stage{i}.png"
+    bush_frames.append(load_image_safe(p, fallback_size=(cell_pixels, int(cell_pixels * 1.5))))
+
+bush_frame_count = len(bush_frames)
+# milliseconds per frame
+bush_frame_duration = 200
+# movement timing (ms)
+bush_move_duration = 2000
+# world (tile) start and end positions (x, y) in tile coordinates
+bush_world_start = (20, 45)
+bush_world_end = (20, 28)
+# start time
+bush_start_time = pygame.time.get_ticks()
+# ---------------------------------------------------------------------------
+
+# Typing speed override: if set to a number (chars/sec) the text_box will use
+# this rate instead of interpolating from stime->etime. Set to None to keep
+# the original behavior where stime..etime defines the duration.
+text_typing_speed_chars_per_sec = 10
+
+# Draw a simple typing textbox at the bottom of the screen.
+def text_box(text, stime, etime):
+    """Draw a white rectangle on the bottom 1/8th of the screen and type the
+    provided text one character at a time between stime and etime (ms).
+    If current time is outside [stime, etime] the box is not drawn.
+    """
+    now = pygame.time.get_ticks()
+    if now < stime or now > etime:
+        return
+
+    # Determine how many characters to show.
+    total_chars = len(text)
+    if text_typing_speed_chars_per_sec is not None:
+        # chars based on constant speed (chars/sec)
+        elapsed = max(0, now - stime)
+        chars = int((elapsed / 1000.0) * float(text_typing_speed_chars_per_sec))
+        chars = max(0, min(total_chars, chars))
+        visible = text[:chars]
+    else:
+        # clamp duration to avoid div-by-zero
+        duration = max(1, etime - stime)
+        progress = float(now - stime) / float(duration)
+        # Determine how many characters to show (floor), ensure not negative
+        chars = int(progress * total_chars)
+        chars = max(0, min(total_chars, chars))
+        visible = text[:chars]
+
+    # Rectangle geometry (bottom 1/8th of screen)
+    rect_h = screen_height // 8
+    # Make the box a little smaller than full-screen so a border of the game
+    # remains visible around it. Margin is proportional to screen width but
+    # has a sensible minimum.
+    margin = max(12, int(screen_width * 0.03))
+    # lift box slightly so the margin also shows below the box
+    rect_y = screen_height - rect_h - (margin // 2)
+    rect = pygame.Rect(margin, rect_y, screen_width - 2 * margin, rect_h)
+
+    # Draw white background and black border
+    pygame.draw.rect(screen, (255, 255, 255), rect)
+    pygame.draw.rect(screen, (0, 0, 0), rect, 2)
+
+    # Render text and center it horizontally (fall back to left padding if
+    # the text is wider than the available area). Vertically center always.
+    font_size = max(12, rect_h // 3)
+    font = pygame.font.Font(None, font_size)
+    text_surf = font.render(visible, True, (10, 10, 10))
+    padding = 10
+    ty = rect.y + (rect.height - text_surf.get_height()) // 2
+
+    max_text_width = rect.width - 2 * padding
+    if text_surf.get_width() <= max_text_width:
+        # Center horizontally
+        tx = rect.x + (rect.width - text_surf.get_width()) // 2
+        screen.blit(text_surf, (tx, ty))
+    else:
+        # Too wide: left-align with padding and clip the drawn area so it
+        # doesn't overflow the box.
+        tx = rect.x + padding
+        clip_area = pygame.Rect(0, 0, max_text_width, text_surf.get_height())
+        screen.blit(text_surf, (tx, ty), area=clip_area)
+
 
 while running:
     for event in pygame.event.get():
@@ -221,23 +334,53 @@ while running:
         end = iso_project((grid_size - 1) * cell_pixels, j * cell_pixels)
         pygame.draw.line(screen, line_color, (offset[0] + start[0], offset[1] + start[1]), (offset[0] + end[0], offset[1] + end[1]), 1)
 
-    # Demo: draw some cubes for verification
-    side_path = "grass_side_carried.png"
-    top_path = "grass_carried.png"
-    side_path2 = "tree.jpg"
-    
-    draw_cube(0, 13, 0.4, "cloud.jpg", top_path)
-    draw_cube(0, 14, 0.2, "cloud.jpg", top_path)
-    draw_cube(0, 15, 0.1, "cloud.jpg", top_path)
-    draw_cube(1, 14, 0.4, "cloud.jpg", top_path)
-    draw_cube(1, 15, 0.2, "cloud.jpg", top_path)
-    draw_cube(2, 15, 0.4, "cloud.jpg", top_path)
-    
-    # taller cube at (8,6)
-    draw_cube(8, 6, 3, side_path2, top_path)
+    # Draw a cube on every grid square using the precomputed heights so
+    # the layout is stable and repeatable across frames.
+    # Iterate rows (y) then columns (x) so tiles are drawn in back-to-front order
+    # for correct overlap in isometric projection.
+    for y in range(grid_size - 1):
+        for x in range(grid_size - 1):
+            h = heights[y][x]
+            if ((x + 6 - grid_size//2) ** 2 + (y + 8 - grid_size//2) ** 2) <= (grid_size * 0.19) ** 2:
+                draw_cube(x, y, 20, "test-assets/spruce_log.png", "test-assets/spruce_log.png")
+            else:
+                draw_cube(x, y, h, ground_side_texture, ground_top_texture)
 
-    # negative (below ground) cube at (10,10)
-    draw_cube(10, 10, -1, side_path, top_path)
+    # draw_cube(5, 5, 3.1, "test-assets/spruce_log.png", "test-assets/spruce_log.png")
+
+    # --- Animated sweet berry bush: update position and frame ----------
+    now = pygame.time.get_ticks()
+    elapsed = now - bush_start_time
+    t = min(1.0, float(elapsed) / float(bush_move_duration))
+
+    # linear interpolate world tile coordinates
+    wx = bush_world_start[0] + (bush_world_end[0] - bush_world_start[0]) * t
+    wy = bush_world_start[1] + (bush_world_end[1] - bush_world_start[1]) * t
+
+    # choose animation frame (looping through frames while moving)
+    frame_index = int((elapsed // bush_frame_duration) % bush_frame_count)
+    frame_surf = bush_frames[frame_index]
+
+    # Project the world tile origin (top-left of tile) in pixels
+    # We want the bush to sit centered on the tile; assume sprite bottom-center aligns to tile's top surface center
+    # Compute tile center in world coords (use center of tile footprint)
+    tile_center_x = (wx + 0.5) * cell_pixels
+    tile_center_y = (wy + 0.5) * cell_pixels
+    screen_pos = iso_project(tile_center_x, tile_center_y, 0)
+    screen_x = offset[0] + screen_pos[0]
+    screen_y = offset[1] + screen_pos[1]
+
+    # Adjust so sprite bottom-center sits on the tile (sprite origin bottom center)
+    sw, sh = frame_surf.get_size()
+    blit_x = int(screen_x - sw // 2)
+    # lift the sprite up a bit so it appears on top of the tile (account for sprite height)
+    blit_y = int(screen_y - sh)
+
+    screen.blit(frame_surf, (blit_x, blit_y))
+    # --------------------------------------------------------------------
+
+    # Test the text_box: show "what a nice tree" from 0 ms to 300 ms
+    text_box("what a nice tree", 3000, 12000)
 
     pygame.display.flip()
     clock.tick(60)
