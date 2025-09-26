@@ -1,6 +1,7 @@
 import pygame
 import random
 import numpy as np
+import pandas as pd
 import math
 import os
 import csv
@@ -297,8 +298,6 @@ def get_face_color(key):
     """Returns the color for a given face key."""
     if key == "top":
         return TOP_FACE_COLOR
-    elif key == "bottom":
-        return BOTTOM_FACE_COLOR
     else: # All side faces
         return SIDE_FACE_COLOR
 
