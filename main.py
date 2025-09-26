@@ -2,6 +2,7 @@ import pygame
 import numpy as np
 import math
 import os
+import csv
 
 # --- Pygame Setup ---
 pygame.init()
@@ -24,12 +25,12 @@ iso_matrix = np.array([
 
 CENTER_X, CENTER_Y = WIDTH // 2, HEIGHT // 2
 
+# --- Function Definitions ---
 
 def project_3d_to_2d(vertex):
     """Project a 3D vertex (x,y,z) to 2D isometric screen coordinates."""
     projected_2d = np.dot(iso_matrix, vertex)
     return [CENTER_X + projected_2d[0], CENTER_Y + projected_2d[1]]
-
 
 def prism_faces(center, R, H):
     """Create the 3D vertices and faces for a hexagonal prism centered at `center`.
@@ -67,23 +68,25 @@ def prism_faces(center, R, H):
 
     return faces
 
-
-def draw_prism(screen, center, R, H, visible_faces=None, face_image_paths=None):
+def draw_prism(screen, center, R, H, face_image_paths=None):
     """Draw a single hexagonal prism at `center`.
 
     This function renders faces for one prism only. Faces are depth-sorted by their
     average Z so the prism looks correct in isolation.
-    """
-    if visible_faces is None:
-        visible_faces = ["top", 0, 1, 5]
 
+    visible faces are inferred from the keys of `face_image_paths` when provided.
+    If no `face_image_paths` is given, a sensible default of ["top", 0, 1, 5]
+    is used (same as the previous behavior).
+    """
     # preload images if provided
     face_images = load_face_images(face_image_paths)
 
-    # face_image_paths can be passed in newer signature; support either
-    # (backwards-compatible): if caller passed a dict of paths as 5th arg
-    # this will be handled by wrapper; keep this function able to accept
-    # images via keyword arg by checking local scope in callers.
+    # Infer visible faces from provided face image mapping, or fall back to default
+    if face_image_paths:
+        # keep the insertion order of mapping keys
+        visible_faces = list(face_image_paths.keys())
+    else:
+        visible_faces = ["top", 0, 1, 5]
 
     faces = prism_faces(center, R, H)
     face_list = []
@@ -106,7 +109,7 @@ def draw_prism(screen, center, R, H, visible_faces=None, face_image_paths=None):
             maxx = int(math.ceil(max(xs)))
             maxy = int(math.ceil(max(ys)))
             # add small padding to avoid seams between adjacent textured faces
-            pad = 2
+            pad = 6
             minx -= pad
             miny -= pad
             maxx += pad
@@ -142,8 +145,6 @@ def draw_prism(screen, center, R, H, visible_faces=None, face_image_paths=None):
             pygame.draw.polygon(screen, color, projected)
             pygame.draw.polygon(screen, WHITE, projected, 1)
 
-
-
 def load_face_images(face_image_paths):
     """Load images from a mapping of key->path or key->Surface.
 
@@ -170,13 +171,17 @@ def load_face_images(face_image_paths):
             continue
     return images
 
-
-def draw_tiled_prisms(screen, R=30, H=60, visible_faces=None, cols=None, rows=None, margin=6, face_image_paths=None):
+def draw_tiled_prisms(screen, R=30, H=60, cols=None, rows=None, margin=6, face_image_paths=None, viz_map_path=None, h_map_path=None):
     """Tile the screen with hexagonal prisms and draw them with correct overlap.
 
-    visible_faces: list of face keys to render per prism (e.g. ["top", 0, 1, 5])
+    visible faces are inferred from the keys of `face_image_paths` when provided.
+    If no `face_image_paths` is given, a sensible default of ["top", 0, 1, 5]
+    is used (same as the previous behavior).
     """
-    if visible_faces is None:
+    # Infer visible faces from provided face image mapping, or fall back to default
+    if face_image_paths:
+        visible_faces = list(face_image_paths.keys())
+    else:
         visible_faces = ["top", 0, 1, 5]
 
     # Use flat-top hex spacing (vertex generation starts at angle 0 -> flat-top)
@@ -203,12 +208,65 @@ def draw_tiled_prisms(screen, R=30, H=60, visible_faces=None, cols=None, rows=No
     # Preload any face images once for the entire tiled draw
     face_images = load_face_images(face_image_paths)
 
+    # Load visualization map from CSV if provided. The CSV is expected to have
+    # rows x cols integers. A value of 0 means "don't draw" that prism; any
+    # non-zero value means draw it.
+    viz_map = None
+    if viz_map_path:
+        try:
+            viz_map = []
+            with open(viz_map_path, newline='') as vf:
+                reader = csv.reader(vf)
+                for row in reader:
+                    if not row:
+                        continue
+                    viz_map.append([int(x) for x in row])
+            # if the file is empty, treat as None
+            if not viz_map:
+                viz_map = None
+        except Exception:
+            viz_map = None
+
+    # Load height map (per-tile vertical pixel offsets) if provided. The CSV
+    # should contain integer pixel offsets. Missing/out-of-range entries
+    # default to 0.
+    h_map = None
+    if h_map_path:
+        try:
+            h_map = []
+            with open(h_map_path, newline='') as hf:
+                reader = csv.reader(hf)
+                for row in reader:
+                    if not row:
+                        continue
+                    h_map.append([int(x) for x in row])
+            if not h_map:
+                h_map = None
+        except Exception:
+            h_map = None
+
     for r in range(rows):
         for c in range(cols):
+            # If a viz_map exists and the entry for this cell is 0, skip drawing
+            if viz_map is not None:
+                try:
+                    val = viz_map[r][c]
+                except Exception:
+                    # out-of-range or invalid -> assume visible
+                    val = 1
+                if val == 0:
+                    continue
             # For flat-top layout, offset every other column vertically
             x = c * dx + grid_offset_x
             y = r * dy + (c % 2) * (dy / 2) + grid_offset_y
             z = 0
+            # per-tile vertical pixel offset (move up by this many screen pixels)
+            try:
+                h_offset = h_map[r][c] if h_map is not None else 0
+                # ensure int and non-negative (if user expects negative allow it)
+                h_offset = int(h_offset)
+            except Exception:
+                h_offset = 0
             center = (x, y, z)
             faces = prism_faces(center, R, H)
             # For each face keep only those requested in visible_faces
@@ -223,7 +281,8 @@ def draw_tiled_prisms(screen, R=30, H=60, visible_faces=None, cols=None, rows=No
                     "key": key,
                     "verts3d": verts3d,
                     "avg_z": avg_z,
-                    "avg_xy": avg_x + avg_y  # tie-breaker
+                    "avg_xy": avg_x + avg_y,  # tie-breaker
+                    "h_offset": h_offset
                 })
 
     # Sort faces by depth: draw from far (small avg_z) to near (large avg_z)
@@ -233,7 +292,13 @@ def draw_tiled_prisms(screen, R=30, H=60, visible_faces=None, cols=None, rows=No
     for face in all_faces:
         key = face["key"]
         verts3d = face["verts3d"]
-        projected = [project_3d_to_2d(v) for v in verts3d]
+        # Project 3D verts to 2D and apply per-tile vertical pixel offset
+        h_offset = face.get("h_offset", 0)
+        projected = []
+        for v in verts3d:
+            px, py = project_3d_to_2d(v)
+            # moving "up" on screen decreases y, so subtract
+            projected.append((px, py - h_offset))
 
         # If we have an image for this face, texture-map it clipped to the polygon
         img = face_images.get(key)
@@ -244,7 +309,7 @@ def draw_tiled_prisms(screen, R=30, H=60, visible_faces=None, cols=None, rows=No
             miny = int(math.floor(min(ys)))
             maxx = int(math.ceil(max(xs)))
             maxy = int(math.ceil(max(ys)))
-            pad = 3
+            pad = 6
             minx -= pad
             miny -= pad
             maxx += pad
@@ -295,13 +360,11 @@ def draw_tiled_prisms(screen, R=30, H=60, visible_faces=None, cols=None, rows=No
             # label = font.render(str(key), True, WHITE)
             # screen.blit(label, (cx - label.get_width() // 2, cy - label.get_height() // 2))
 
-
 def main():
     running = True
     R = 30
     H = 60
-    # Which faces to show per prism. Keep top + the three visible side faces.
-    visible_faces = ["top", 0, 1, 5]
+    # visible faces are now inferred from provided face images per function call
 
     # Example: explicitly set number of columns and rows in the grid.
     # Change these two values to adjust the number of tiles drawn.
@@ -324,8 +387,10 @@ def main():
             5: os.path.join(face_dir, "onexit_5.png"),
         }
 
-        draw_tiled_prisms(screen, R=R, H=H, visible_faces=visible_faces, cols=example_cols, rows=example_rows, face_image_paths=face_image_paths)
-        # draw_prism(screen, center=(0, 0, 0), R=R, H=H, visible_faces=visible_faces, face_image_paths=face_image_paths)
+        draw_tiled_prisms(screen, R=R, H=H, cols=example_cols, rows=example_rows, face_image_paths=face_image_paths, viz_map_path="viz_map_0.csv", h_map_path="h_map_rand.csv")
+        # draw_tiled_prisms(screen, R=R, H=H, cols=example_cols, rows=example_rows, face_image_paths=face_image_paths, viz_map_path="viz_map_0.csv", h_map_path="h_map_unif_0.csv")
+        # draw_tiled_prisms(screen, R=R, H=H, cols=example_cols, rows=example_rows, face_image_paths=face_image_paths, viz_map_path="viz_map_1.csv", h_map_path="h_map_unif_60.csv")
+        # draw_prism(screen, center=(0, 0, 0), R=R, H=H, face_image_paths=face_image_paths)
 
         pygame.display.flip()
         clock.tick(60)

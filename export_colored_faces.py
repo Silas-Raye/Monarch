@@ -22,6 +22,12 @@ R = 30  # Radius of the hexagon, corresponds to a 30mm side length
 H = 60  # Height of the prism, 60mm
 CENTER_X, CENTER_Y = WIDTH // 2, HEIGHT // 2
 
+# --- Face Colors ---
+# Define the colors for each face here
+TOP_FACE_COLOR = (200, 200, 255)
+BOTTOM_FACE_COLOR = (80, 80, 80)
+SIDE_FACE_COLOR = (120, 180, 120)
+
 # --- Define Vertices (3D coordinates) ---
 vertices = []
 for i in range(6):
@@ -40,12 +46,12 @@ faces = {
     "top": [0, 2, 4, 6, 8, 10],
     "bottom": [1, 3, 5, 7, 9, 11],
     # Six side rectangles
-    0: [0, 1, 3, 2],     # side 0
-    1: [2, 3, 5, 4],     # side 1
-    2: [4, 5, 7, 6],     # side 2
-    3: [6, 7, 9, 8],     # side 3
-    4: [8, 9, 11, 10],   # side 4
-    5: [10, 11, 1, 0]    # side 5
+    0: [0, 1, 3, 2],    # side 0
+    1: [2, 3, 5, 4],    # side 1
+    2: [4, 5, 7, 6],    # side 2
+    3: [6, 7, 9, 8],    # side 3
+    4: [8, 9, 11, 10],  # side 4
+    5: [10, 11, 1, 0]   # side 5
 }
 
 # --- Choose which faces to show ---
@@ -65,6 +71,14 @@ def project_3d_to_2d(vertex):
         CENTER_Y + projected_2d[1]
     ]
 
+def get_face_color(key):
+    """Returns the color for a given face key."""
+    if key == "top":
+        return TOP_FACE_COLOR
+    elif key == "bottom":
+        return BOTTOM_FACE_COLOR
+    else: # All side faces
+        return SIDE_FACE_COLOR
 
 def save_visible_faces(visible_faces, vertices, faces, project_fn, out_dir="exported_faces", prefix=None):
     """Save each face in visible_faces to a tightly-cropped image.
@@ -91,11 +105,14 @@ def save_visible_faces(visible_faces, vertices, faces, project_fn, out_dir="expo
         # Local polygon coords
         local_poly = [(int(p[0]) - min_x + pad, int(p[1]) - min_y + pad) for p in projected]
 
-        # PNG with alpha
+        # Get the color for the face
+        face_color_rgb = get_face_color(key)
+        # Create a Pygame surface with alpha channel for the PNG
         surf_png = pygame.Surface((w, h), pygame.SRCALPHA)
-        surf_png.fill((0, 0, 0, 0))
-        pygame.draw.polygon(surf_png, (255, 255, 255, 255), local_poly)
-        # pygame.draw.polygon(surf_png, (0, 0, 0, 200), local_poly, 2)
+        surf_png.fill((0, 0, 0, 0)) # Fill with transparent
+        pygame.draw.polygon(surf_png, face_color_rgb + (255,), local_poly)
+        # Optional: Add a black border to the saved PNG
+        # pygame.draw.polygon(surf_png, (0, 0, 0, 255), local_poly, 2)
 
         name_key = str(key)
         if prefix:
@@ -141,13 +158,7 @@ while running:
         face_indices = faces[key]
         projected_face = [project_3d_to_2d(vertices[v_idx]) for v_idx in face_indices]
         
-        # Pick color
-        if key == "top":
-            face_color = (200, 200, 255)
-        elif key == "bottom":
-            face_color = (80, 80, 80)
-        else:
-            face_color = (120, 180, 120)
+        face_color = get_face_color(key)
         
         pygame.draw.polygon(screen, face_color, projected_face)
         pygame.draw.polygon(screen, WHITE, projected_face, 2)
