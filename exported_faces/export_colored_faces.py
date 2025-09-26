@@ -24,9 +24,9 @@ CENTER_X, CENTER_Y = WIDTH // 2, HEIGHT // 2
 
 # --- Face Colors ---
 # Define the colors for each face here
-TOP_FACE_COLOR = (200, 200, 255)
+SIDE_FACE_COLOR = (200, 200, 255)
 BOTTOM_FACE_COLOR = (80, 80, 80)
-SIDE_FACE_COLOR = (120, 180, 120)
+TOP_FACE_COLOR = (120, 180, 120)
 
 # --- Define Vertices (3D coordinates) ---
 vertices = []
