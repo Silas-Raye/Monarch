@@ -1,9 +1,20 @@
 import csv
 import random
 import pandas as pd
+import sys
 import os
 
-def create_map(num_rows, num_cols, file_name, out_dir="exported_maps", default_value=0, randomize=False, random_min=None, random_max=None, seed=None):
+current_dir = os.path.dirname(os.path.abspath(__file__)) # Get the directory of the current file
+parent_dir = os.path.dirname(current_dir) # Go up one level to the parent directory
+sys.path.append(parent_dir) # Add the parent directory to the Python path
+
+# Now you can import 'setup' and 'functions' from the parent directory
+from setup import game_setup
+
+num_rows = game_setup["num_rows"]
+num_cols = game_setup["num_cols"]
+
+def create_map(num_rows=num_rows, num_cols=num_cols, file_name="untitled_map.csv", out_dir="exported_maps", default_value=0, randomize=False, random_min=None, random_max=None, seed=None):
     """
     Creates a CSV file with a specified number of rows and columns,
     populating each cell with a default value.
@@ -84,8 +95,8 @@ def map_add(io_dir = "exported_maps", path1_name = None, path2_name = None, outp
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
-# create_map(12, 12, 'h_map_rand.csv', randomize=True, random_min=0, random_max=20, seed=10)
-# create_map(12, 12, 'h_map_unif_30.csv', default_value=30)
-# map_add(path1_name = 'h_map_rand.csv', path2_name = 'h_map_unif_30.csv', output_name = 'h_map_sum.csv')
-# create_map(12, 12, 'viz_map_unif.csv', default_value=1)
-create_map(12, 12, 'viz_map_cust.csv', default_value=0)
+create_map(file_name='h_map_rand.csv', randomize=True, random_min=0, random_max=20, seed=10)
+create_map(file_name='h_map_unif_30.csv', default_value=30)
+map_add(path1_name = 'h_map_rand.csv', path2_name = 'h_map_unif_30.csv', output_name = 'h_map_sum.csv')
+create_map(file_name='viz_map_unif.csv', default_value=1)
+create_map(file_name='viz_map_cust.csv', default_value=0)
