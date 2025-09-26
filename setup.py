@@ -30,8 +30,8 @@ iso_matrix = np.array([
 # Parameters for draw tiled prisms
 cell_radius = 30
 cell_height = 30
-num_cols = 15
-num_rows = 15
+num_cols = 8
+num_rows = 8
 face_dir = os.path.join(os.path.dirname(__file__), "exported_faces")
 image_paths = {
     "top": os.path.join(face_dir, "face_top.png"),
