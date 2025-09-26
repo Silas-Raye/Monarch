@@ -1,44 +1,42 @@
 import pygame
 import numpy as np
 import math
+import sys
 import os
-from datetime import datetime
 
-# --- Pygame Setup ---
-pygame.init()
-WIDTH, HEIGHT = 1000, 650
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Isometric Hexagonal Prism")
-clock = pygame.time.Clock()
-font = pygame.font.SysFont(None, 24)
+current_dir = os.path.dirname(os.path.abspath(__file__)) # Get the directory of the current file
+parent_dir = os.path.dirname(current_dir) # Go up one level to the parent directory
+sys.path.append(parent_dir) # Add the parent directory to the Python path
 
-# --- Colors ---
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-GRAY = (100, 100, 100)
+# Now you can import 'setup' and 'functions' from the parent directory
+from setup import game_setup
+from functions import project_3d_to_2d, get_face_color, save_visible_faces
 
-# --- Prism Properties ---
-R = 30  # Radius of the hexagon, corresponds to a 30mm side length
-H = 60  # Height of the prism, 60mm
-CENTER_X, CENTER_Y = WIDTH // 2, HEIGHT // 2
-
-# --- Face Colors ---
-# Define the colors for each face here
-SIDE_FACE_COLOR = (200, 200, 255)
-BOTTOM_FACE_COLOR = (80, 80, 80)
-TOP_FACE_COLOR = (120, 180, 120)
+# Access the setup variables from the imported dictionary
+screen = game_setup["screen"]
+clock = game_setup["clock"]
+font = game_setup["font"]
+WIDTH = game_setup["WIDTH"]
+HEIGHT = game_setup["HEIGHT"]
+CENTER_X = game_setup["CENTER_X"]
+CENTER_Y = game_setup["CENTER_Y"]
+BLACK = game_setup["BLACK"]
+WHITE = game_setup["WHITE"]
+iso_matrix = game_setup["iso_matrix"]
+cell_radius = game_setup["cell_radius"]
+cell_height = game_setup["cell_height"]
 
 # --- Define Vertices (3D coordinates) ---
 vertices = []
 for i in range(6):
     angle_deg = 60 * i
     angle_rad = math.radians(angle_deg)
-    x = R * math.cos(angle_rad)
-    y = R * math.sin(angle_rad)
+    x = cell_radius * math.cos(angle_rad)
+    y = cell_radius * math.sin(angle_rad)
     # Top face (z > 0)
-    vertices.append([x, y, H / 2])
+    vertices.append([x, y, cell_height / 2])
     # Bottom face (z < 0)
-    vertices.append([x, y, -H / 2])
+    vertices.append([x, y, -cell_height / 2])
 vertices = np.array(vertices)
 
 # --- Define Faces ---
@@ -55,89 +53,16 @@ faces = {
 }
 
 # --- Choose which faces to show ---
-visible_faces = ["top", 0, 1, 5]  # change this list
+visible_faces = ["top", 0, 1, 5]
+show_face_indices = True
 
-# --- Isometric Projection Matrix ---
-iso_angle = math.radians(30)
-iso_matrix = np.array([
-    [math.cos(iso_angle), -math.cos(iso_angle), 0],
-    [math.sin(iso_angle), math.sin(iso_angle), -1]
-])
-
-def project_3d_to_2d(vertex):
-    projected_2d = np.dot(iso_matrix, vertex)
-    return [
-        CENTER_X + projected_2d[0],
-        CENTER_Y + projected_2d[1]
-    ]
-
-def get_face_color(key):
-    """Returns the color for a given face key."""
-    if key == "top":
-        return TOP_FACE_COLOR
-    elif key == "bottom":
-        return BOTTOM_FACE_COLOR
-    else: # All side faces
-        return SIDE_FACE_COLOR
-
-def save_visible_faces(visible_faces, vertices, faces, project_fn, out_dir="exported_faces", prefix=None):
-    """Save each face in visible_faces to a tightly-cropped image.
-
-    Produces one files per face: PNG with alpha (best for Photoshop).
-    """
-    os.makedirs(out_dir, exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    for key in visible_faces:
-        face_indices = faces[key]
-        face_vertices = vertices[face_indices]
-        projected = [project_fn(v) for v in face_vertices]
-
-        xs = [p[0] for p in projected]
-        ys = [p[1] for p in projected]
-        min_x, max_x = int(min(xs)), int(max(xs))
-        min_y, max_y = int(min(ys)), int(max(ys))
-
-        pad = 4
-        w = max(1, max_x - min_x + 2 * pad)
-        h = max(1, max_y - min_y + 2 * pad)
-
-        # Local polygon coords
-        local_poly = [(int(p[0]) - min_x + pad, int(p[1]) - min_y + pad) for p in projected]
-
-        # Get the color for the face
-        face_color_rgb = get_face_color(key)
-        # Create a Pygame surface with alpha channel for the PNG
-        surf_png = pygame.Surface((w, h), pygame.SRCALPHA)
-        surf_png.fill((0, 0, 0, 0)) # Fill with transparent
-        pygame.draw.polygon(surf_png, face_color_rgb + (255,), local_poly)
-        # Optional: Add a black border to the saved PNG
-        # pygame.draw.polygon(surf_png, (0, 0, 0, 255), local_poly, 2)
-
-        name_key = str(key)
-        if prefix:
-            base = f"{prefix}_{name_key}"
-        else:
-            base = f"face_{name_key}"
-
-        png_path = os.path.join(out_dir, base + ".png")
-
-        try:
-            pygame.image.save(surf_png, png_path)
-            print(f"Saved: {png_path}")
-        except Exception as e:
-            print(f"Failed saving {base}: {e}")
-
-# --- Main Loop ---
+# --- Game Loop ---
 running = True
+
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_s:
-                # Save visible faces when 's' is pressed
-                save_visible_faces(visible_faces, vertices, faces, project_3d_to_2d)
 
     screen.fill(BLACK)
     
@@ -168,13 +93,14 @@ while running:
             cx = sum(p[0] for p in projected_face) / len(projected_face)
             cy = sum(p[1] for p in projected_face) / len(projected_face)
             # Write the face index in white
-            label = font.render(str(key), True, WHITE)
-            screen.blit(label, (cx - label.get_width() // 2, cy - label.get_height() // 2))
+            if show_face_indices:
+                label = font.render(str(key), True, WHITE)
+                screen.blit(label, (cx - label.get_width() // 2, cy - label.get_height() // 2))
 
     pygame.display.flip()
     clock.tick(60)
 
 pygame.quit()
 
-# On exit, also export faces once more (useful when closing window)
-save_visible_faces(visible_faces, vertices, faces, project_3d_to_2d, prefix="onexit")
+# On exit, export faces
+save_visible_faces(visible_faces, vertices, faces, project_3d_to_2d)
