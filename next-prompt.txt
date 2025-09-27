@@ -1,5 +1,13 @@
-Please read all of my code base and help me add a new feature to my game. I would like to have a player character drawn at the center of the map. The player is a small ant and they move to wherever the player clicks.
+Please help me add a new feature to my pygame. I would like to have a player character drawn at the center of the map. The player is a small ant. Their sprites sheet is stored at assets/sprites/pc/ant_walk_sheet.png. the full sheet is 450 wide x 1800 tall and each sprite is 450 wide x 300 tall. there are 6 sprites on the sheet. The ant should cycle through their sprites if "moving" = true. when "moving" = false they should stay on the first sprite.
 
-Their sprites sheet is stored at assets/sprites/pc/ant_walk_sheet.png. the full sheet is 450 x 1800 and each sprite is 450 x 300 tall. The ant should cycle through their sprites while moving to simulate crawling. when not moving they should stay on pc0.png sprite.
+Here's a plan to implement the player character (ant):
+
+1. Player Class: Create a Player class in a new file to manage the ant's state, including its position, sprite animation, and movement logic.
+
+2. Sprite Sheet Handling: Implement a function to load and parse the ant's sprite sheet into a list of individual sprite surfaces.
+
+3. Drawing the Player: A new function will be needed to draw the ant at its isometric position, handling sprite selection and animation.
+
+---
 
 The ant should be able to crawl about on all the faces of the prisms I have already drawn. the map that I have already drawn is larger than the screen, and when the ant gets near the edge of the screen I would like the map to move beneath the ant so that they remain on screen at all times.
