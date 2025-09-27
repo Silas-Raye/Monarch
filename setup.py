@@ -1,7 +1,8 @@
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 import numpy as np
 import math
-import os
 
 # --- Pygame Setup ---
 pygame.init()
@@ -28,7 +29,7 @@ iso_matrix = np.array([
 ])
 
 # Parameters for draw tiled prisms
-cell_radius = 32
+cell_radius = 128
 cell_height = cell_radius
 num_cols = 32
 num_rows = num_cols

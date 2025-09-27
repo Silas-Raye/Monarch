@@ -1,9 +1,10 @@
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 import random
 import numpy as np
 import pandas as pd
 import math
-import os
 import csv
 from setup import game_setup
 

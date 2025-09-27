@@ -1,8 +1,9 @@
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 import numpy as np
 import math
 import sys
-import os
 
 current_dir = os.path.dirname(os.path.abspath(__file__)) # Get the directory of the current file
 parent_dir = os.path.dirname(os.path.dirname(current_dir))  # Go up two levels to the parent directory

@@ -26,7 +26,7 @@ def main():
     sprite_height = 300
     num_sprites = 6
 
-    player = Player(player_x, player_y, ant_sprite_sheet_path, sprite_width, sprite_height, num_sprites)
+    player = Player(player_x, player_y, ant_sprite_sheet_path, sprite_width, sprite_height, num_sprites, scale=0.2)
 
 
 
