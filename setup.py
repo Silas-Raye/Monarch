@@ -39,9 +39,6 @@ image_paths = {
     1: os.path.join(face_dir, "face_1.png"),
     5: os.path.join(face_dir, "face_5.png"),
 }
-plant_paths = {
-    "top": os.path.join(face_dir, "face_top_w_chair.png")
-}
 
 # Export a dictionary with all the necessary setup variables
 game_setup = {
@@ -61,6 +58,5 @@ game_setup = {
     "cell_height": cell_height,
     "num_cols": num_cols,
     "num_rows": num_rows,
-    "image_paths": image_paths,
-    "plant_paths": plant_paths
+    "image_paths": image_paths
 }

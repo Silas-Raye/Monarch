@@ -11,7 +11,6 @@ BLACK = game_setup["BLACK"]
 WHITE = game_setup["WHITE"]
 cell_height = game_setup["cell_height"]
 image_paths = game_setup["image_paths"]
-plant_paths = game_setup["plant_paths"]
 
 def main():
     # Create maps if they don't exist
@@ -31,11 +30,13 @@ def main():
 
         screen.fill(BLACK)
 
-        draw_tiled_prisms(screen, viz_map=y0_viz, h_map=y0, face_image_paths=image_paths, labs=False)
-        draw_tiled_prisms(screen, viz_map="y1_viz.csv", h_map=y1, face_image_paths=image_paths, labs=False)
-        draw_tiled_prisms(screen, viz_map="y2_viz.csv", h_map=y2, face_image_paths=image_paths, labs=False)
-        draw_tiled_prisms(screen, viz_map="y2_viz.csv", h_map=y3, face_image_paths=image_paths, labs=False)
-        draw_tiled_prisms(screen, viz_map="y3_viz.csv", h_map=y4, face_image_paths=image_paths, labs=False)
+        # draw_tiled_prisms(screen, viz_map=y0_viz, h_map=y0, face_image_paths=image_paths, labs=False)
+        # draw_tiled_prisms(screen, viz_map="y1_viz.csv", h_map=y1, face_image_paths=image_paths, labs=False)
+        # draw_tiled_prisms(screen, viz_map="y2_viz.csv", h_map=y2, face_image_paths=image_paths, labs=False)
+        # draw_tiled_prisms(screen, viz_map="y2_viz.csv", h_map=y3, face_image_paths=image_paths, labs=False)
+        # draw_tiled_prisms(screen, viz_map="y3_viz.csv", h_map=y4, face_image_paths=image_paths, labs=False)
+
+        draw_tiled_prisms(screen, viz_map="y0_viz.csv", h_map=quick_map(randomize=True, random_min=-8, random_max=8, seed=8), face_image_paths=image_paths, labs=False)
 
         pygame.display.flip()
         clock.tick(60)
