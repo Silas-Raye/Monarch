@@ -4,7 +4,7 @@
 ## Recent Featured Screenshot
 Right now all the game can do is render environments made of hexagonal cells. My next step is to add a movable character and game scrolling like in Hades.
 
-![picture](Monarch-Screenshots/2025-09-26-chairs.png)
+![picture](Monarch-Screenshots/chairs.png)
 
 ![picture](Monarch-Screenshots/2025-09-26-textured-landscape.png)
 
