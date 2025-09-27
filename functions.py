@@ -103,10 +103,22 @@ def draw_tiled_prisms(screen, R=cell_radius, H=cell_height, cols=num_cols, rows=
     Faces within each prism remain: bottom, 2, 3, 4, 1, 0, 5, top.
     """
 
-    # Ensure map directory exists
-    os.makedirs(map_dir, exist_ok=True)
-    viz_map_path = os.path.join(map_dir, viz_map) if viz_map else None
-    h_map_path = os.path.join(map_dir, h_map) if h_map else None
+    ACCEPTABLE_TYPES = (str, pd.DataFrame)
+    if (not isinstance(viz_map, ACCEPTABLE_TYPES) and
+        not isinstance(h_map, ACCEPTABLE_TYPES)):
+        print("Error: viz_map and h_map must be either a filename (str) or a pandas DataFrame.")
+
+    if isinstance(viz_map, pd.DataFrame):
+        pass
+    elif isinstance(viz_map, str):
+        os.makedirs(map_dir, exist_ok=True)
+        viz_map_path = os.path.join(map_dir, viz_map) if viz_map else None
+
+    if isinstance(h_map, pd.DataFrame):
+        pass
+    elif isinstance(h_map, str):
+        os.makedirs(map_dir, exist_ok=True)
+        h_map_path = os.path.join(map_dir, viz_map) if viz_map else None
 
     # ---- Helpers for odd-q (flat-top) offset -> axial mapping ----
     # Your layout uses y = r*dy + (c % 2)*(dy/2), i.e. odd columns are shifted,
@@ -144,37 +156,41 @@ def draw_tiled_prisms(screen, R=cell_radius, H=cell_height, cols=num_cols, rows=
     # Preload any face images once
     face_images = load_face_images(face_image_paths)
 
-    # Optional visibility map
-    viz_map = None
-    if viz_map_path:
-        try:
-            viz_map = []
-            with open(viz_map_path, newline='') as vf:
-                reader = csv.reader(vf)
-                for row in reader:
-                    if not row:
-                        continue
-                    viz_map.append([int(x) for x in row])
-            if not viz_map:
+    if isinstance(viz_map, pd.DataFrame):
+        pass
+    elif isinstance(viz_map, str):
+        viz_map = None
+        if viz_map_path:
+            try:
+                viz_map = []
+                with open(viz_map_path, newline='') as vf:
+                    reader = csv.reader(vf)
+                    for row in reader:
+                        if not row:
+                            continue
+                        viz_map.append([int(x) for x in row])
+                if not viz_map:
+                    viz_map = None
+            except Exception:
                 viz_map = None
-        except Exception:
-            viz_map = None
 
-    # Optional height map
-    h_map = None
-    if h_map_path:
-        try:
-            h_map = []
-            with open(h_map_path, newline='') as hf:
-                reader = csv.reader(hf)
-                for row in reader:
-                    if not row:
-                        continue
-                    h_map.append([int(x) for x in row])
-            if not h_map:
+    if isinstance(viz_map, pd.DataFrame):
+        pass
+    elif isinstance(viz_map, str):
+        h_map = None
+        if h_map_path:
+            try:
+                h_map = []
+                with open(h_map_path, newline='') as hf:
+                    reader = csv.reader(hf)
+                    for row in reader:
+                        if not row:
+                            continue
+                        h_map.append([int(x) for x in row])
+                if not h_map:
+                    h_map = None
+            except Exception:
                 h_map = None
-        except Exception:
-            h_map = None
 
     # Fixed per-prism face draw order
     local_face_order = ["bottom", 2, 3, 4, 1, 0, 5, "top"]
@@ -392,6 +408,55 @@ def create_map(num_rows=num_rows, num_cols=num_cols, file_name="untitled_map.csv
             writer.writerow(row)
 
     print(f"Successfully created '{file_name}' with {num_rows} rows and {num_cols} columns.")
+
+def quick_map(num_rows=num_rows, num_cols=num_cols, default_value=0, randomize=False, random_min=None, random_max=None, seed=None):
+    """
+    Creates a pandas DataFrame with a specified number of rows and columns,
+    populating each cell with a default value or a random integer.
+
+    Args:
+        num_rows (int): Number of rows in the DataFrame. Defaults to 10.
+        num_cols (int): Number of columns in the DataFrame. Defaults to 10.
+        default_value (int): Value to populate each cell if not random. Defaults to 0.
+        randomize (bool): If True, populate cells with random integers. Defaults to False.
+        random_min (int): Minimum value for random integers (inclusive). Defaults to 0.
+        random_max (int): Maximum value for random integers (inclusive). Defaults to 100.
+        seed (int, optional): Seed for the random number generator to ensure reproducibility.
+
+    Returns:
+        pandas.DataFrame: The generated DataFrame.
+    """
+
+    # Set the seed for the random number generator if provided
+    if seed is not None:
+        random.seed(seed)
+
+    # Prepare data storage as a list of lists
+    data = []
+
+    # Iterate through the rows
+    for _ in range(num_rows):
+        if not randomize:
+            # Generate a row with the default value
+            row = [default_value for _ in range(num_cols)]
+        else:
+            # Generate a row with random values
+            if random_min > random_max:
+                # Simple error handling for invalid range
+                print("Warning: random_min is greater than random_max. Using defaults (0-100).")
+                random_min = 0
+                random_max = 100
+
+            row = [random.randint(random_min, random_max) for _ in range(num_cols)]
+
+        # Add the completed row to the data
+        data.append(row)
+
+    # Create the pandas DataFrame from the list of lists
+    # turn off row and column labels for simplicity
+    df = pd.DataFrame(data, index=None, columns=None) 
+
+    return df
 
 def map_add(io_dir = "exported_maps", path1_name = None, path2_name = None, output_name = "map_sum.csv"):
     """

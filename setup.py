@@ -5,10 +5,10 @@ import os
 
 # --- Pygame Setup ---
 pygame.init()
-WIDTH, HEIGHT = 1080, 680
+WIDTH, HEIGHT = 1280, 720
 CENTER_X, CENTER_Y = WIDTH // 2, HEIGHT // 2
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Isometric Hexagonal Prism - Tiled")
+pygame.display.set_caption("Monarch")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont(None, 20)
 
@@ -28,8 +28,8 @@ iso_matrix = np.array([
 ])
 
 # Parameters for draw tiled prisms
-cell_radius = 30
-cell_height = 30
+cell_radius = 32
+cell_height = cell_radius
 num_cols = 8
 num_rows = 8
 face_dir = os.path.join(os.path.dirname(__file__), "exported_faces")
@@ -40,7 +40,7 @@ image_paths = {
     5: os.path.join(face_dir, "face_5.png"),
 }
 plant_paths = {
-    0: os.path.join(face_dir, "face_0.png"),
+    "top": os.path.join(face_dir, "face_top_w_chair.png")
 }
 
 # Export a dictionary with all the necessary setup variables
