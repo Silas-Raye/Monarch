@@ -366,96 +366,70 @@ def save_visible_faces(visible_faces, vertices, faces, project_fn, out_dir="expo
         except Exception as e:
             print(f"Failed saving {base}: {e}")
 
-def create_map(num_rows=num_rows, num_cols=num_cols, file_name="untitled_map.csv", out_dir="exported_maps", default_value=0, randomize=False, random_min=None, random_max=None, seed=None):
-    """
-    Creates a CSV file with a specified number of rows and columns,
-    populating each cell with a default value.
-    
-    Args:
-        num_rows (int): Number of rows in the CSV.
-        num_cols (int): Number of columns in the CSV.
-        file_name (str): Name of the output CSV file.
-        default_value (int, optional): Value to populate each cell. Defaults to 0.
-        randomize (bool, optional): If True, populate cells with random integers instead of default_value. Defaults to False.
-        random_min (int, optional): Minimum value for random integers (inclusive). Required if randomize is True.
-        random_max (int, optional): Maximum value for random integers (inclusive). Required if randomize is True.
-        seed (int, optional): Seed for the random number generator to ensure reproducibility.
-    """
-
-    # Ensure output directory exists
-    os.makedirs(out_dir, exist_ok=True)
-
-    # Full path for the output file
-    file_path = os.path.join(out_dir, file_name)
-
-    # Set the seed for the random number generator if provided
-    if seed is not None:
-        random.seed(seed)
-        
-    # Open the file in write mode
-    with open(file_path, 'w', newline='') as csvfile:
-        # Create a CSV writer object
-        writer = csv.writer(csvfile)
-
-        # Iterate through the rows
-        for _ in range(num_rows):
-            # Generate a row with the default value
-            if not randomize:
-                row = [default_value for _ in range(num_cols)]
-            else:
-                row = [random.randint(random_min, random_max) for _ in range(num_cols)]
-            # Write the row to the CSV file
-            writer.writerow(row)
-
-    print(f"Successfully created '{file_name}' with {num_rows} rows and {num_cols} columns.")
-
-def quick_map(num_rows=num_rows, num_cols=num_cols, default_value=0, randomize=False, random_min=None, random_max=None, seed=None):
+def quick_map(map_rows=num_rows, map_cols=num_cols, default_value=0, h_randomize=False, viz_randomize=False, random_min=None, random_max=None, seed=42, map_name=None):
     """
     Creates a pandas DataFrame with a specified number of rows and columns,
     populating each cell with a default value or a random integer.
-
+    
     Args:
-        num_rows (int): Number of rows in the DataFrame. Defaults to 10.
-        num_cols (int): Number of columns in the DataFrame. Defaults to 10.
-        default_value (int): Value to populate each cell if not random. Defaults to 0.
-        randomize (bool): If True, populate cells with random integers. Defaults to False.
-        random_min (int): Minimum value for random integers (inclusive). Defaults to 0.
-        random_max (int): Maximum value for random integers (inclusive). Defaults to 100.
-        seed (int, optional): Seed for the random number generator to ensure reproducibility.
+        map_rows (int): The number of rows for the DataFrame.
+        map_cols (int): The number of columns for the DataFrame.
+        default_value (int): The default value to fill the DataFrame with.
+        h_randomize (bool): If True, fills the entire DataFrame with random integers.
+        viz_randomize (bool): If True, fills the DataFrame with zeros and then randomly sets `random_max` cells to 1.
+        random_min (int): The minimum value for random integers when h_randomize is True.
+        random_max (int): The maximum value for random integers when h_randomize is True, or the number of cells to set to 1 when viz_randomize is True.
+        seed (int): The seed for the random number generator.
+        map_name (str): The name of the CSV file to save the DataFrame to.
 
     Returns:
-        pandas.DataFrame: The generated DataFrame.
+        pd.DataFrame: The generated pandas DataFrame.
     """
-
-    # Set the seed for the random number generator if provided
-    if seed is not None:
+    if seed is not 42:
         random.seed(seed)
 
-    # Prepare data storage as a list of lists
     data = []
 
-    # Iterate through the rows
-    for _ in range(num_rows):
-        if not randomize:
-            # Generate a row with the default value
-            row = [default_value for _ in range(num_cols)]
-        else:
-            # Generate a row with random values
-            if random_min > random_max:
-                # Simple error handling for invalid range
-                print("Warning: random_min is greater than random_max. Using defaults (0-100).")
-                random_min = 0
-                random_max = 100
+    if h_randomize:
+        if random_min is None or random_max is None:
+            raise ValueError("h_randomize requires both random_min and random_max to be set.")
+        data = [[random.randint(random_min, random_max) for _ in range(map_cols)] for _ in range(map_rows)]
+    
+    elif viz_randomize:
+        if random_max is None:
+            raise ValueError("viz_randomize requires random_max to be set.")
+        
+        # Start with a grid of default_value
+        data = [[default_value for _ in range(map_cols)] for _ in range(map_rows)]
+        
+        # Calculate total number of cells
+        total_cells = map_rows * map_cols
+        
+        # Number of cells to set to 1
+        num_ones = min(random_max, total_cells)
+        
+        # Generate all possible coordinates
+        all_coords = [(r, c) for r in range(map_rows) for c in range(map_cols)]
+        
+        # Select a random sample of coordinates to set to 1
+        random_coords = random.sample(all_coords, num_ones)
+        
+        # Update the data grid
+        for r, c in random_coords:
+            data[r][c] = 1
+            
+    else:
+        data = [[default_value for _ in range(map_cols)] for _ in range(map_rows)]
 
-            row = [random.randint(random_min, random_max) for _ in range(num_cols)]
-
-        # Add the completed row to the data
-        data.append(row)
-
-    # Create the pandas DataFrame from the list of lists
-    # turn off row and column labels for simplicity
-    df = pd.DataFrame(data, index=None, columns=None) 
-
+    df = pd.DataFrame(data)
+    
+    # Save the DataFrame to a CSV file if map_name is provided
+    if map_name is not None:
+        if not os.path.exists("exported_maps"):
+            os.makedirs("exported_maps")
+        map_path = os.path.join("exported_maps", map_name)
+        df.to_csv(map_path, index=False, header=False)
+    
     return df
 
 def map_add(io_dir = "exported_maps", path1_name = None, path2_name = None, output_name = "map_sum.csv"):

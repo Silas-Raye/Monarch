@@ -1,7 +1,7 @@
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
-from functions import draw_tiled_prisms, create_map, map_add, quick_map
+from functions import draw_tiled_prisms, quick_map
 from setup import game_setup
 
 # Access the setup variables from the imported dictionary
@@ -14,12 +14,10 @@ image_paths = game_setup["image_paths"]
 
 def main():
     # Create maps if they don't exist
-    y0 = quick_map(default_value=0)
+    y0 = quick_map()
     y1 = quick_map(default_value=cell_height)
-    y2 = quick_map(default_value=(cell_height*2))
-    y3 = quick_map(default_value=(cell_height*3))
-    y4 = quick_map(default_value=(cell_height*4))
-    y0_viz = quick_map(default_value=1)
+    all_viz = quick_map(default_value=1)
+    y1_viz = quick_map(viz_randomize=True, random_max=50)
     
     running = True
 
@@ -30,14 +28,9 @@ def main():
 
         screen.fill(BLACK)
 
-        # draw_tiled_prisms(screen, viz_map=y0_viz, h_map=y0, face_image_paths=image_paths, labs=False)
-        # draw_tiled_prisms(screen, viz_map="y1_viz.csv", h_map=y1, face_image_paths=image_paths, labs=False)
-        # draw_tiled_prisms(screen, viz_map="y2_viz.csv", h_map=y2, face_image_paths=image_paths, labs=False)
-        # draw_tiled_prisms(screen, viz_map="y2_viz.csv", h_map=y3, face_image_paths=image_paths, labs=False)
-        # draw_tiled_prisms(screen, viz_map="y3_viz.csv", h_map=y4, face_image_paths=image_paths, labs=False)
-
-        draw_tiled_prisms(screen, viz_map="y0_viz.csv", h_map=quick_map(randomize=True, random_min=-8, random_max=8, seed=8), face_image_paths=image_paths, labs=False)
-
+        draw_tiled_prisms(screen, viz_map=all_viz, h_map=y0, face_image_paths=image_paths, labs=False)
+        draw_tiled_prisms(screen, viz_map=y1_viz, h_map=y1, face_image_paths=image_paths, labs=False)
+        
         pygame.display.flip()
         clock.tick(60)
 
