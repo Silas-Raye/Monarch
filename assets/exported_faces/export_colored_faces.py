@@ -5,7 +5,7 @@ import sys
 import os
 
 current_dir = os.path.dirname(os.path.abspath(__file__)) # Get the directory of the current file
-parent_dir = os.path.dirname(current_dir) # Go up one level to the parent directory
+parent_dir = os.path.dirname(os.path.dirname(current_dir))  # Go up two levels to the parent directory
 sys.path.append(parent_dir) # Add the parent directory to the Python path
 
 # Now you can import 'setup' and 'functions' from the parent directory

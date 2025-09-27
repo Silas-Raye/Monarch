@@ -317,7 +317,7 @@ def get_face_color(key):
     else: # All side faces
         return SIDE_FACE_COLOR
 
-def save_visible_faces(visible_faces, vertices, faces, project_fn, out_dir="exported_faces", prefix="face", outline=False, outline_color=BLACK):
+def save_visible_faces(visible_faces, vertices, faces, project_fn, out_dir=os.path.join("assets", "exported_faces"), prefix="face", outline=False, outline_color=BLACK):
     """Save each face in visible_faces to a tightly-cropped image.
 
     Produces one files per face: PNG with alpha (best for Photoshop).
@@ -424,15 +424,15 @@ def quick_map(map_rows=num_rows, map_cols=num_cols, default_value=0, h_randomize
     df = pd.DataFrame(data)
     
     # Save the DataFrame to a CSV file if map_name is provided
+    exported_faces = os.path.join("assets", "exported_maps")
     if map_name is not None:
-        if not os.path.exists("exported_maps"):
-            os.makedirs("exported_maps")
-        map_path = os.path.join("exported_maps", map_name)
+        os.makedirs(exported_faces, exist_ok=True)
+        map_path = os.path.join(exported_faces, map_name)
         df.to_csv(map_path, index=False, header=False)
     
     return df
 
-def map_add(io_dir = "exported_maps", path1_name = None, path2_name = None, output_name = "map_sum.csv"):
+def map_add(io_dir = os.path.join("assets", "exported_maps"), path1_name = None, path2_name = None, output_name = "map_sum.csv"):
     """
     Adds corresponding elements of two CSV files and saves the result to a new CSV.
 
