@@ -385,7 +385,7 @@ def quick_map(map_rows=num_rows, map_cols=num_cols, default_value=0, h_randomize
     Returns:
         pd.DataFrame: The generated pandas DataFrame.
     """
-    if seed is not 42:
+    if seed != 42:
         random.seed(seed)
 
     data = []
