@@ -1,0 +1,5 @@
+Please read all of my code base and help me add a new feature to my game. I would like to have a player character drawn at the center of the map. The player is a small ant and they move to wherever the player clicks.
+
+Their sprites sheet is stored at assets/sprites/pc/ant_walk_sheet.png. the full sheet is 450 x 1800 and each sprite is 450 x 300 tall. The ant should cycle through their sprites while moving to simulate crawling. when not moving they should stay on pc0.png sprite.
+
+The ant should be able to crawl about on all the faces of the prisms I have already drawn. the map that I have already drawn is larger than the screen, and when the ant gets near the edge of the screen I would like the map to move beneath the ant so that they remain on screen at all times.
