@@ -1,7 +1,7 @@
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
-from functions import draw_tiled_prisms, quick_map
+from functions import draw_tiled_prisms, quick_map, create_prism_cache
 from setup import game_setup
 from player import Player
 
@@ -48,9 +48,18 @@ def main():
         1: os.path.join(face_dir, "face_1.png"),
         5: os.path.join(face_dir, "face_5.png"),
     }
-    top_image_paths = {
-        "top": os.path.join(face_dir, "face_top.png")
+
+    # Load face images and create cache
+    face_dir = os.path.join("assets", "exported_faces")
+    image_paths = {
+        "top": os.path.join(face_dir, "face_top.png"),
+        0: os.path.join(face_dir, "face_0.png"),
+        1: os.path.join(face_dir, "face_1.png"),
+        5: os.path.join(face_dir, "face_5.png"),
     }
+    
+    # Create the prism cache
+    face_cache = create_prism_cache(image_paths)
 
     running = True
 
@@ -85,8 +94,8 @@ def main():
 
         screen.fill(BLACK)
 
-        draw_tiled_prisms(screen, viz_map=all_viz, h_map=y0, face_image_paths=image_paths, labs=False)
-        draw_tiled_prisms(screen, viz_map=y1_viz, h_map=y1, face_image_paths=image_paths, labs=False)
+        draw_tiled_prisms(screen, viz_map=all_viz, h_map=y0, face_cache=face_cache, labs=False)
+        draw_tiled_prisms(screen, viz_map=y1_viz, h_map=y1, face_cache=face_cache, labs=False)
         
         # Update and draw the player
         player.update()

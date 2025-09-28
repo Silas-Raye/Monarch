@@ -104,4 +104,4 @@ while running:
 pygame.quit()
 
 # On exit, export faces
-save_visible_faces(visible_faces, vertices, faces, project_3d_to_2d)
+save_visible_faces(visible_faces, vertices, faces, project_3d_to_2d, outline=True, outline_color=BLACK)

@@ -94,16 +94,23 @@ def load_face_images(face_image_paths):
             continue
     return images
 
-def draw_tiled_prisms(screen, R=cell_radius, H=cell_height, cols=num_cols, rows=num_rows, margin=6, map_dir = "exported_maps", viz_map=None, h_map=None, face_image_paths=None, labs=False):
-    """Tile the screen with hexagonal prisms and draw them in hex-diagonal order.
-
-    New rendering order (tile traversal):
-      - Hex "diagonals" (bands) from top-left outward, at 90° to side 5.
-      - Within each diagonal, left-to-right by column.
-
-    Faces within each prism remain: bottom, 2, 3, 4, 1, 0, 5, top.
+def draw_tiled_prisms(screen, R=cell_radius, H=cell_height, cols=num_cols, rows=num_rows, margin=6, map_dir = "exported_maps", viz_map=None, h_map=None, face_cache=None, labs=False):
     """
+    Tile the screen with hexagonal prisms and draw them in hex-diagonal order using a pre-rendered cache.
 
+    Args:
+        screen (pygame.Surface): The surface to draw on.
+        R (int): The radius of the hexagonal cell.
+        H (int): The height of the prism.
+        cols (int): The number of columns in the grid.
+        rows (int): The number of rows in the grid.
+        margin (int): Margin for the grid size.
+        map_dir (str): Directory for map files.
+        viz_map (str or pd.DataFrame): Visibility map.
+        h_map (str or pd.DataFrame): Height map.
+        face_cache (dict): A dictionary of pre-rendered face surfaces.
+        labs (bool): If True, draw labels on the prisms.
+    """
     ACCEPTABLE_TYPES = (str, pd.DataFrame)
     if (not isinstance(viz_map, ACCEPTABLE_TYPES) and
         not isinstance(h_map, ACCEPTABLE_TYPES)):
@@ -121,9 +128,6 @@ def draw_tiled_prisms(screen, R=cell_radius, H=cell_height, cols=num_cols, rows=
         os.makedirs(map_dir, exist_ok=True)
         h_map_path = os.path.join(map_dir, viz_map) if viz_map else None
 
-    # ---- Helpers for odd-q (flat-top) offset -> axial mapping ----
-    # Your layout uses y = r*dy + (c % 2)*(dy/2), i.e. odd columns are shifted,
-    # which is the "odd-q" layout (see Red Blob Games).
     def offset_oddq_to_axial(r, c):
         aq = c
         ar = r - ((c - (c & 1)) // 2)
@@ -131,31 +135,23 @@ def draw_tiled_prisms(screen, R=cell_radius, H=cell_height, cols=num_cols, rows=
 
     def diagonal_band_index(r, c):
         aq, ar = offset_oddq_to_axial(r, c)
-        # Lines at 90° to face 5 correspond to constant (aq + ar) in axial space.
         return aq + ar
 
-    # ---- Visible faces selection (same as your original) ----
-    if face_image_paths:
-        visible_faces = set(face_image_paths.keys())
+    if face_cache:
+        visible_faces = set(face_cache.keys())
     else:
         visible_faces = set(["top", 0, 1, 5])
 
-    # Flat-top hex spacing
     dx = 1.5 * R
     dy = math.sqrt(3) * R
 
-    # Determine grid size
     if cols is None:
         cols = int(WIDTH / dx) + margin
     if rows is None:
         rows = int(HEIGHT / dy) + margin
 
-    # Center the grid roughly on screen
     grid_offset_x = -cols * dx / 2
     grid_offset_y = -rows * dy / 2
-
-    # Preload any face images once
-    face_images = load_face_images(face_image_paths)
 
     if isinstance(viz_map, pd.DataFrame):
         pass
@@ -193,12 +189,7 @@ def draw_tiled_prisms(screen, R=cell_radius, H=cell_height, cols=num_cols, rows=
             except Exception:
                 h_map = None
 
-    # Fixed per-prism face draw order
     local_face_order = ["bottom", 2, 3, 4, 1, 0, 5, "top"]
-
-    # ---- Build hex-diagonal traversal order ----
-    # Collect all cells with their band index; sort by band, then by column (c), then by row (r)
-    # This yields the diagonal-length pattern you described: 1,3,5,..., n, ... ,3,1 (for square grids).
     cells = []
     for r in range(rows):
         for c in range(cols):
@@ -209,82 +200,49 @@ def draw_tiled_prisms(screen, R=cell_radius, H=cell_height, cols=num_cols, rows=
                 except Exception:
                     pass
             b = diagonal_band_index(r, c)
-            cells.append((b, c, r))  # sort keys: band, then left->right within the band, then row as tiebreaker
+            cells.append((b, c, r))
     cells.sort(key=lambda t: (t[0], t[1], t[2]))
 
-    # ---- Draw prisms in the new order ----
     for _, c, r in cells:
-        # Flat-top layout: every other column is vertically offset
         x = c * dx + grid_offset_x
         y = r * dy + (c % 2) * (dy / 2) + grid_offset_y
         z = 0
 
-        # Per-tile vertical pixel offset
         try:
             h_offset = int(h_map[r][c]) if h_map is not None else 0
         except Exception:
             h_offset = 0
 
         center = (x, y, z)
-
-        # Get all faces for this prism and index them
+        projected_center = project_3d_to_2d(center)
+        
+        # Only get the faces for drawing labs
         faces_list = prism_faces(center, R, H)
         faces_dict = {key: verts for key, verts in faces_list}
-
-        # Draw faces in fixed order for THIS prism only
+        
         for key in local_face_order:
-            if key not in faces_dict:
-                continue
             if key not in visible_faces:
                 continue
 
-            verts3d = faces_dict[key]
+            if face_cache and key in face_cache:
+                face_data = face_cache[key]
+                face_surf = face_data["surface"]
+                face_offset = face_data["offset"]
+                
+                # Blit the pre-rendered surface
+                screen.blit(face_surf, (
+                    projected_center[0] + face_offset[0],
+                    projected_center[1] + face_offset[1] - h_offset
+                ))
 
-            # Project 3D verts to 2D and apply per-tile vertical pixel offset
-            projected = []
-            for v in verts3d:
-                px, py = project_3d_to_2d(v)
-                projected.append((px, py - h_offset))
-
-            # If image exists for this face, texture-map clipped to polygon
-            img = face_images.get(key)
-            if img is not None:
-                xs = [p[0] for p in projected]
-                ys = [p[1] for p in projected]
-                minx = int(math.floor(min(xs)))
-                miny = int(math.floor(min(ys)))
-                maxx = int(math.ceil(max(xs)))
-                maxy = int(math.ceil(max(ys)))
-                pad = 6
-                minx -= pad
-                miny -= pad
-                maxx += pad
-                maxy += pad
-                w = max(1, maxx - minx)
-                h = max(1, maxy - miny)
-
-                try:
-                    scaled = pygame.transform.smoothscale(img, (w, h))
-                except Exception:
-                    scaled = pygame.transform.scale(img, (w, h))
-
-                image_surf = pygame.Surface((w, h), pygame.SRCALPHA)
-                image_surf.blit(scaled, (0, 0))
-
-                # create mask polygon (white inside poly, transparent outside)
-                mask_surf = pygame.Surface((w, h), pygame.SRCALPHA)
-                poly_rel = [(int(x - minx), int(y - miny)) for x, y in projected]
-                pygame.draw.polygon(mask_surf, (255, 255, 255, 255), poly_rel)
-
-                # multiply alpha by mask
-                image_surf.blit(mask_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-
-                # blit the textured polygon at the correct position
-                screen.blit(image_surf, (minx, miny))
-                # outline
-                pygame.draw.polygon(screen, WHITE, projected, 1)
             else:
-                # Fallback color per face type
+                # Fallback to drawing without cache
+                verts3d = faces_dict[key]
+                projected = []
+                for v in verts3d:
+                    px, py = project_3d_to_2d(v)
+                    projected.append((px, py - h_offset))
+                
                 if key == "top":
                     color = (200, 200, 255)
                 elif key == "bottom":
@@ -293,13 +251,14 @@ def draw_tiled_prisms(screen, R=cell_radius, H=cell_height, cols=num_cols, rows=
                     base = 150
                     shade = int((key % 3) * 20)
                     color = (base - shade, 170 - shade, 130 - shade)
-
                 pygame.draw.polygon(screen, color, projected)
                 pygame.draw.polygon(screen, WHITE, projected, 1)
 
             if labs:
-                # If this is the top face, label it with "row,col" (1-based)
                 if key == "top":
+                    verts3d = faces_dict[key]
+                    projected = [project_3d_to_2d(v) for v in verts3d]
+                    
                     cx = sum(p[0] for p in projected) / len(projected)
                     cy = sum(p[1] for p in projected) / len(projected)
 
@@ -307,7 +266,7 @@ def draw_tiled_prisms(screen, R=cell_radius, H=cell_height, cols=num_cols, rows=
                     label_surf = font.render(label_txt, True, (255, 255, 255))
                     shadow = font.render(label_txt, True, (0, 0, 0))
                     lx = int(cx - label_surf.get_width() // 2)
-                    ly = int(cy - label_surf.get_height() // 2) - 2
+                    ly = int(cy - label_surf.get_height() // 2) - 2 - h_offset
                     screen.blit(shadow, (lx + 1, ly + 1))
                     screen.blit(label_surf, (lx, ly))
 
@@ -470,3 +429,60 @@ def map_add(io_dir = os.path.join("assets", "exported_maps"), path1_name = None,
         print("Error: One or both of the specified CSV files were not found.")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
+
+def create_prism_cache(face_image_paths):
+    """
+    Pre-renders and caches textured prism faces.
+
+    Args:
+        face_image_paths (dict): A dictionary mapping face keys to image paths.
+
+    Returns:
+        dict: A dictionary mapping face keys to pre-rendered Pygame Surfaces.
+    """
+    face_images = load_face_images(face_image_paths)
+    face_cache = {}
+
+    # Define a canonical prism for pre-rendering
+    center = (0, 0, 0)
+    faces_list = prism_faces(center, cell_radius, cell_height)
+    faces_dict = {key: verts for key, verts in faces_list}
+
+    # Pre-render each visible face
+    for key, verts3d in faces_dict.items():
+        img = face_images.get(key)
+        if img is not None:
+            projected = [project_3d_to_2d(v) for v in verts3d]
+            xs = [p[0] for p in projected]
+            ys = [p[1] for p in projected]
+            minx = int(math.floor(min(xs)))
+            miny = int(math.floor(min(ys)))
+            maxx = int(math.ceil(max(xs)))
+            maxy = int(math.ceil(max(ys)))
+            pad = 4
+            minx -= pad
+            miny -= pad
+            maxx += pad
+            maxy += pad
+            w = max(1, maxx - minx)
+            h = max(1, maxy - miny)
+
+            try:
+                scaled = pygame.transform.smoothscale(img, (w, h))
+            except Exception:
+                scaled = pygame.transform.scale(img, (w, h))
+
+            image_surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            image_surf.blit(scaled, (0, 0))
+
+            mask_surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            poly_rel = [(int(x - minx), int(y - miny)) for x, y in projected]
+            pygame.draw.polygon(mask_surf, (255, 255, 255, 255), poly_rel)
+            image_surf.blit(mask_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+            face_cache[key] = {
+                "surface": image_surf,
+                "offset": (minx - CENTER_X, miny - CENTER_Y) # Store the offset relative to the center
+            }
+
+    return face_cache
