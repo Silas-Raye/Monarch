@@ -29,17 +29,10 @@ iso_matrix = np.array([
 ])
 
 # Parameters for draw tiled prisms
-cell_radius = 128
+cell_radius = 64
 cell_height = cell_radius
-num_cols = 32
+num_cols = 17
 num_rows = num_cols
-face_dir = os.path.join("assets", "exported_faces")
-image_paths = {
-    "top": os.path.join(face_dir, "face_top.png"),
-    0: os.path.join(face_dir, "face_0.png"),
-    1: os.path.join(face_dir, "face_1.png"),
-    5: os.path.join(face_dir, "face_5.png"),
-}
 
 # Export a dictionary with all the necessary setup variables
 game_setup = {
@@ -58,6 +51,5 @@ game_setup = {
     "cell_radius": cell_radius,
     "cell_height": cell_height,
     "num_cols": num_cols,
-    "num_rows": num_rows,
-    "image_paths": image_paths
+    "num_rows": num_rows
 }
