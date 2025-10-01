@@ -8,13 +8,14 @@ class Player:
         self.x = x
         self.y = y
         self.moving = False
-        self.facing_right = True # New attribute to track direction
+        self.facing_right = True
+        self.facing_up = False
+        self.facing_down = False
         self.speed = 5
         self.frame_index = 0
         self.animation_speed = 5 # Higher is slower
         self.last_update = pygame.time.get_ticks()
 
-        # Load and store both normal and flipped sprites
         self.frames = self.load_sprites(sprite_sheet_path, frame_width, frame_height, num_frames, scale)
         self.flipped_frames = [pygame.transform.flip(frame, True, False) for frame in self.frames]
 
@@ -32,7 +33,6 @@ class Player:
             frame = pygame.Surface((frame_width, frame_height), pygame.SRCALPHA)
             frame.blit(sprite_sheet, (0, 0), (0, i * frame_height, frame_width, frame_height))
 
-            # Scale the frame
             new_width = int(frame_width * scale)
             new_height = int(frame_height * scale)
             scaled_frame = pygame.transform.scale(frame, (new_width, new_height))
@@ -41,40 +41,67 @@ class Player:
         return frames
 
     def update(self):
-        """Updates the player's animation and position."""
+        """Updates the player's animation, position, and rotation."""
         now = pygame.time.get_ticks()
         
-        # Determine which set of frames to use based on direction
         current_frames = self.frames if self.facing_right else self.flipped_frames
 
         if self.moving and now - self.last_update > self.animation_speed * 10:
             self.last_update = now
             self.frame_index = (self.frame_index + 1) % len(current_frames)
-            self.image = current_frames[self.frame_index]
         elif not self.moving:
             self.frame_index = 0
-            self.image = current_frames[self.frame_index]
 
-        # Update the rect to follow the new coordinates
-        self.rect.center = (self.x, self.y)
+        base_image = current_frames[self.frame_index]
+        
+        # Apply rotation based on vertical movement, adjusting for horizontal direction
+        if self.facing_up:
+            if self.facing_right:
+                self.image = pygame.transform.rotate(base_image, 30)
+            else:
+                self.image = pygame.transform.rotate(base_image, -30)
+        elif self.facing_down:
+            if self.facing_right:
+                self.image = pygame.transform.rotate(base_image, -30)
+            else:
+                self.image = pygame.transform.rotate(base_image, 30)
+        else:
+            self.image = base_image
+
+        self.rect = self.image.get_rect(center=(self.x, self.y))
 
     def move(self, dx, dy):
-        """Moves the player and updates the facing direction."""
+        """Moves the player and updates the facing direction and rotation state."""
         self.x += dx * self.speed
         self.y += dy * self.speed
         self.moving = True
 
-        # Update facing direction based on horizontal movement
         if dx > 0:
             self.facing_right = True
+            self.facing_up = False
+            self.facing_down = False
         elif dx < 0:
             self.facing_right = False
+            self.facing_up = False
+            self.facing_down = False
+        
+        if dy > 0:
+            self.facing_down = True
+            self.facing_up = False
+        elif dy < 0:
+            self.facing_up = True
+            self.facing_down = False
+            
+        if dx != 0 and dy != 0:
+            self.facing_up = False
+            self.facing_down = False
 
     def stop_moving(self):
         """Stops the player's movement and animation."""
         self.moving = False
+        self.facing_up = False
+        self.facing_down = False
 
     def draw(self, screen):
         """Draws the player on the screen."""
         screen.blit(self.image, self.rect)
-        
